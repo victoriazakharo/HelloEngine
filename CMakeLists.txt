@@ -12,6 +12,9 @@ else()
     add_definitions(-DUSE_PLATFORM_XCB_KHR)
 endif()
 
+set(RENDER_API vulkan)
+add_definitions(-DUSE_RENDER_VULKAN)
+
 add_definitions(-std=c++0x)
 add_definitions(-std=c++14)
 add_definitions(-std=gnu++14)

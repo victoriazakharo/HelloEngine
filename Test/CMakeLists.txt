@@ -14,3 +14,4 @@ if(WIN32)
         $(TargetDir))  
 endif() 
 
+file(COPY "${PROJECT_SOURCE_DIR}/${ENGINE_LIB}/resources/shaders/" DESTINATION "$(TargetDir)/../shaders")

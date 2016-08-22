@@ -28,5 +28,11 @@ add_library(${ENGINE_LIB} SHARED
     ${EXPORT_HEADER_FILES} 
 )
 
+include (GenerateExportHeader)
+GENERATE_EXPORT_HEADER(${ENGINE_LIB}
+             BASE_NAME ${NAME}
+             EXPORT_MACRO_NAME HELLO_ENGINE_API
+             EXPORT_FILE_NAME ${PROJECT_SOURCE_DIR}/${ENGINE_LIB}/include/hello_export.h)
+  
 target_link_libraries(${ENGINE_LIB} ${PLATFORM_LIBRARY})
 set_target_properties(${ENGINE_LIB} PROPERTIES LINKER_LANGUAGE CXX)

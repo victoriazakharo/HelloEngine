@@ -10,10 +10,21 @@ void Game::OnLButtonDown(int x, int y)
 bool Game::Initialize()
 {
 	m_Window.AddEventHandler(this);	
-	if (!m_Window.Create("Test")) {
+	if (!m_Window.Create(NAME)) {
 		return false;
 	}	
-	if (!m_Renderer.Initialize(m_Window.GetParameters())) {
+	static const std::vector<float> vertex_data = {
+
+		0.6f, 0.6f, 0.0f, 1.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+
+		0.0f, -0.8f, 0.0f, 1.0f,
+		1.0f, 1.0f, 0.0f, 0.0f,
+
+		-0.6f, 0.6f, 0.0f, 1.0f,
+		1.0f, 0.6f, 0.3f, 0.0f
+	};
+	if (!m_Renderer.Initialize(m_Window.GetParameters(), vertex_data)) {
 		return false;
 	}
 	return true;

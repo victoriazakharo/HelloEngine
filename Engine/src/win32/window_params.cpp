@@ -71,7 +71,7 @@ namespace HelloEngine
 		delete m_Parameters;
 	}
 
-	bool Window::Create(const char *title) 
+	bool Window::Create(const char *title, const int x, const int y, const int w, const int h)
 	{
 		m_Parameters->instance = GetModuleHandle(nullptr);
 		WNDCLASSEX wcex{};
@@ -90,7 +90,7 @@ namespace HelloEngine
 		if (!RegisterClassEx(&wcex)) {
 			return false;
 		}
-		m_Parameters->handle = CreateWindow(WINDOW_CLASS_NAME, title, WS_OVERLAPPEDWINDOW, 20, 20, 500, 500, nullptr, nullptr, m_Parameters->instance, this);
+		m_Parameters->handle = CreateWindow(WINDOW_CLASS_NAME, title, WS_OVERLAPPEDWINDOW, x, y, w, h, nullptr, nullptr, m_Parameters->instance, this);
 		if (!m_Parameters->handle) {
 			return false;
 		}

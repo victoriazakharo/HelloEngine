@@ -3,6 +3,7 @@
 #include "renderer.h"
 
 class Game : public HelloEngine::WindowEventHandler {
+	const char           *NAME = "Test";
 	HelloEngine::Window   m_Window;
 	HelloEngine::Renderer m_Renderer;
 public:

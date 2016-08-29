@@ -28,7 +28,7 @@ namespace HelloEngine
 		Window();
 		~Window();
 
-		bool					Create(const char *title);
+		bool					Create(const char *title, const int x = 20, const int y = 20, const int w = 500, const int h = 500);
 		bool					ProcessInput();			
 		bool					IsCloseRequested() const;
 		bool					IsResizeRequested();

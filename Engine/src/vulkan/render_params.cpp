@@ -7,9 +7,9 @@
 
 namespace HelloEngine
 {
-	bool Renderer::Initialize(WindowParameters *parameters)
+	bool Renderer::Initialize(WindowParameters *parameters, const std::vector<float>& vertex_data, Color color)
 	{
-		return m_Params->Initialize(parameters);
+		return m_Params->Initialize(parameters, vertex_data, color);
 	}
 
 	bool Renderer::OnWindowSizeChanged()
@@ -25,7 +25,7 @@ namespace HelloEngine
 	bool Renderer::Draw()
 	{
 		return m_Params->Draw();
-	}
+	}	
 
 	RenderParameters::RenderParameters() :
 		m_CanRender(false),
@@ -47,8 +47,9 @@ namespace HelloEngine
 	{
 	}
 
-	bool RenderParameters::Initialize(WindowParameters *parameters) {
+	bool RenderParameters::Initialize(WindowParameters *parameters, const std::vector<float>& vertex_data, Color color) {
 		m_Window = parameters;
+		m_ClearColor = color;
 		if (!LoadVulkanLibrary()) {
 			return false;
 		}
@@ -84,11 +85,17 @@ namespace HelloEngine
 		}
 		if (!CreatePipeline()) {
 			return false;
-		}
-		if (!CreateVertexBuffer()) {
+		}		
+		if (!CreateRenderingResources()) {
 			return false;
 		}
-		if (!CreateRenderingResources()) {
+		if (!CreateVertexBuffer(vertex_data)) {
+			return false;
+		}
+		if (!CreateStagingBuffer()) {
+			return false;
+		}
+		if (!CopyVertexData(vertex_data)) {
 			return false;
 		}
 		return true;
@@ -779,60 +786,89 @@ namespace HelloEngine
 		return true;
 	}
 
-	bool RenderParameters::CreateVertexBuffer()
+	bool RenderParameters::CreateVertexBuffer(const std::vector<float>& vertex_data)
 	{
-		VertexData vertex_data[] = {			
-			{
-				0.6f, 0.6f, 0.0f, 1.0f,
-				0.0f, 0.0f, 1.0f, 0.0f
-			},
-			{
-				0.0f, -0.8f, 0.0f, 1.0f,
-				1.0f, 1.0f, 0.0f, 0.0f
-			},
-			{
-				-0.6f, 0.6f, 0.0f, 1.0f,
-				1.0f, 0.6f, 0.3f, 0.0f
-			}
+		m_VertexBuffer.size = static_cast<uint32_t>(vertex_data.size() * sizeof(vertex_data[0]));
+
+		if (!CreateBuffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_VertexBuffer)) {
+			std::cout << "Could not create vertex buffer!" << std::endl;
+			return false;
+		}
+		return true;
+	}
+
+	bool RenderParameters::CopyVertexData(const std::vector<float>& vertex_data) {
+		void *staging_buffer_memory_pointer;
+		if (vkMapMemory(m_Device, m_StagingBuffer.memory, 0, m_VertexBuffer.size, 0, &staging_buffer_memory_pointer) != VK_SUCCESS) {
+			std::cout << "Could not map memory and upload data to a staging buffer!" << std::endl;
+			return false;
+		}
+
+		memcpy(staging_buffer_memory_pointer, &vertex_data[0], m_VertexBuffer.size);
+
+		VkMappedMemoryRange flush_range = {
+			VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE,            
+			nullptr,                                         
+			m_StagingBuffer.memory,                        
+			0,                                                 
+			m_VertexBuffer.size                          
+		};
+		vkFlushMappedMemoryRanges(m_Device, 1, &flush_range);
+
+		vkUnmapMemory(m_Device, m_StagingBuffer.memory);
+
+		VkCommandBufferBeginInfo command_buffer_begin_info = {
+			VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,        // VkStructureType                        sType
+			nullptr,                                            // const void                            *pNext
+			VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,        // VkCommandBufferUsageFlags              flags
+			nullptr                                             // const VkCommandBufferInheritanceInfo  *pInheritanceInfo
 		};
 
-		m_VertexBuffer.size = sizeof(vertex_data);
+		VkCommandBuffer command_buffer = m_RenderingResources[0].commandBuffer;
 
-		VkBufferCreateInfo buffer_create_info{};
-		buffer_create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-		buffer_create_info.size = m_VertexBuffer.size;
-		buffer_create_info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-		buffer_create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		vkBeginCommandBuffer(command_buffer, &command_buffer_begin_info);
 
-		if (vkCreateBuffer(m_Device, &buffer_create_info, nullptr, &m_VertexBuffer.handle) != VK_SUCCESS) {
-			std::cout << "Could not create a vertex buffer!" << std::endl;
+		VkBufferCopy buffer_copy_info = {
+			0,                                                  // VkDeviceSize                           srcOffset
+			0,                                                  // VkDeviceSize                           dstOffset
+			m_VertexBuffer.size                            // VkDeviceSize                           size
+		};
+		vkCmdCopyBuffer(command_buffer, m_StagingBuffer.handle, m_VertexBuffer.handle, 1, &buffer_copy_info);
+
+		VkBufferMemoryBarrier buffer_memory_barrier = {
+			VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,            // VkStructureType                        sType;
+			nullptr,                                            // const void                            *pNext
+			VK_ACCESS_MEMORY_WRITE_BIT,                         // VkAccessFlags                          srcAccessMask
+			VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,                // VkAccessFlags                          dstAccessMask
+			VK_QUEUE_FAMILY_IGNORED,                            // uint32_t                               srcQueueFamilyIndex
+			VK_QUEUE_FAMILY_IGNORED,                            // uint32_t                               dstQueueFamilyIndex
+			m_VertexBuffer.handle,                              // VkBuffer                               buffer
+			0,                                                  // VkDeviceSize                           offset
+			VK_WHOLE_SIZE                                       // VkDeviceSize                           size
+		};
+		vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 0, nullptr, 1, &buffer_memory_barrier, 0, nullptr);
+
+		vkEndCommandBuffer(command_buffer);
+
+		// Submit command buffer and copy data from staging buffer to a vertex buffer
+		VkSubmitInfo submit_info = {
+			VK_STRUCTURE_TYPE_SUBMIT_INFO,                      // VkStructureType                        sType
+			nullptr,                                            // const void                            *pNext
+			0,                                                  // uint32_t                               waitSemaphoreCount
+			nullptr,                                            // const VkSemaphore                     *pWaitSemaphores
+			nullptr,                                            // const VkPipelineStageFlags            *pWaitDstStageMask;
+			1,                                                  // uint32_t                               commandBufferCount
+			&command_buffer,                                    // const VkCommandBuffer                 *pCommandBuffers
+			0,                                                  // uint32_t                               signalSemaphoreCount
+			nullptr                                             // const VkSemaphore                     *pSignalSemaphores
+		};
+
+		if (vkQueueSubmit(m_GraphicsQueue.handle, 1, &submit_info, VK_NULL_HANDLE) != VK_SUCCESS) {
 			return false;
 		}
-		if (!AllocateBufferMemory(m_VertexBuffer.handle, &m_VertexBuffer.memory)) {
-			std::cout << "Could not allocate memory for a vertex buffer!" << std::endl;
-			return false;
-		}
 
-		if (vkBindBufferMemory(m_Device, m_VertexBuffer.handle, m_VertexBuffer.memory, 0) != VK_SUCCESS) {
-			std::cout << "Could not bind memory for a vertex buffer!" << std::endl;
-			return false;
-		}
+		vkDeviceWaitIdle(m_Device);
 
-		void *vertex_buffer_memory_pointer;
-		if (vkMapMemory(m_Device, m_VertexBuffer.memory, 0, m_VertexBuffer.size, 0, &vertex_buffer_memory_pointer) != VK_SUCCESS) {
-			std::cout << "Could not map memory and upload data to a vertex buffer!" << std::endl;
-			return false;
-		}
-
-		memcpy(vertex_buffer_memory_pointer, vertex_data, m_VertexBuffer.size);
-
-		VkMappedMemoryRange flush_range{};
-		flush_range.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-		flush_range.memory = m_VertexBuffer.memory;
-		flush_range.size = VK_WHOLE_SIZE;
-
-		vkFlushMappedMemoryRanges(m_Device, 1, &flush_range);
-		vkUnmapMemory(m_Device, m_VertexBuffer.memory);
 		return true;
 	}
 
@@ -848,6 +884,47 @@ namespace HelloEngine
 				return false;
 			}
 		}
+		return true;
+	}
+
+	bool RenderParameters::CreateStagingBuffer()
+	{
+		m_StagingBuffer.size = 4000;
+		if (!CreateBuffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, m_StagingBuffer)) {
+			std::cout << "Could not staging buffer!" << std::endl;
+			return false;
+		}
+
+		return true;
+	}
+
+	bool RenderParameters::CreateBuffer(VkBufferUsageFlags usage, VkMemoryPropertyFlagBits memoryProperty, BufferParameters &buffer) {
+		VkBufferCreateInfo buffer_create_info = {
+			VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,             // VkStructureType        sType
+			nullptr,                                          // const void            *pNext
+			0,                                                // VkBufferCreateFlags    flags
+			buffer.size,                                      // VkDeviceSize           size
+			usage,                                            // VkBufferUsageFlags     usage
+			VK_SHARING_MODE_EXCLUSIVE,                        // VkSharingMode          sharingMode
+			0,                                                // uint32_t               queueFamilyIndexCount
+			nullptr                                           // const uint32_t        *pQueueFamilyIndices
+		};
+
+		if (vkCreateBuffer(m_Device, &buffer_create_info, nullptr, &buffer.handle) != VK_SUCCESS) {
+			std::cout << "Could not create buffer!" << std::endl;
+			return false;
+		}
+
+		if (!AllocateBufferMemory(buffer.handle, memoryProperty, &buffer.memory)) {
+			std::cout << "Could not allocate memory for a buffer!" << std::endl;
+			return false;
+		}
+
+		if (vkBindBufferMemory(m_Device, buffer.handle, buffer.memory, 0) != VK_SUCCESS) {
+			std::cout << "Could not bind memory to a buffer!" << std::endl;
+			return false;
+		}
+
 		return true;
 	}
 
@@ -880,9 +957,9 @@ namespace HelloEngine
 			barrier_from_present_to_draw.subresourceRange = image_subresource_range;		
 			vkCmdPipelineBarrier(command_buffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier_from_present_to_draw);
 		}
-
+		
 		VkClearValue clear_value = {
-			{ 0.0f, 0.3f, 0.4f, 0.0f },                        
+			m_ClearColor.r, m_ClearColor.g, m_ClearColor.b                       
 		};
 
 		VkRenderPassBeginInfo render_pass_begin_info{};
@@ -938,7 +1015,7 @@ namespace HelloEngine
 		return true;
 	}
 
-	bool RenderParameters::AllocateBufferMemory(VkBuffer buffer, VkDeviceMemory *memory) const
+	bool RenderParameters::AllocateBufferMemory(VkBuffer buffer, VkMemoryPropertyFlagBits property, VkDeviceMemory *memory) const
 	{
 		VkMemoryRequirements buffer_memory_requirements;
 		vkGetBufferMemoryRequirements(m_Device, buffer, &buffer_memory_requirements);
@@ -948,7 +1025,7 @@ namespace HelloEngine
 
 		for (uint32_t i = 0; i < memory_properties.memoryTypeCount; ++i) {
 			if ((buffer_memory_requirements.memoryTypeBits & (1 << i)) &&
-				(memory_properties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)) {
+				(memory_properties.memoryTypes[i].propertyFlags & property)) {
 
 				VkMemoryAllocateInfo memory_allocate_info {};
 				memory_allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
@@ -1111,6 +1188,19 @@ namespace HelloEngine
 		return true;
 	}
 
+	void RenderParameters::DestroyBuffer(BufferParameters& buffer) const
+	{
+		if (buffer.handle != VK_NULL_HANDLE) {
+			vkDestroyBuffer(m_Device, buffer.handle, nullptr);
+			buffer.handle = VK_NULL_HANDLE;
+		}
+
+		if (buffer.memory != VK_NULL_HANDLE) {
+			vkFreeMemory(m_Device, buffer.memory, nullptr);
+			buffer.memory = VK_NULL_HANDLE;
+		}
+	}
+
 	bool RenderParameters::AllocateCommandBuffers(VkCommandPool pool, uint32_t count, VkCommandBuffer *command_buffers) const
 	{
 		VkCommandBufferAllocateInfo command_buffer_allocate_info{};
@@ -1239,6 +1329,8 @@ namespace HelloEngine
 				vkDestroyCommandPool(m_Device, m_CommandPool, nullptr);
 				m_CommandPool = VK_NULL_HANDLE;
 			}
+			DestroyBuffer(m_VertexBuffer);
+			DestroyBuffer(m_StagingBuffer);
 			if (m_GraphicsPipeline != VK_NULL_HANDLE) {
 				vkDestroyPipeline(m_Device, m_GraphicsPipeline, nullptr);
 				m_GraphicsPipeline = VK_NULL_HANDLE;

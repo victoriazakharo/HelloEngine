@@ -11,7 +11,7 @@ namespace HelloEngine
 		delete m_Parameters->deleteReply;
 	}
 
-	bool Window::Create(const char *title) {
+	bool Window::Create(const char *title, const int x, const int y, const int w, const int h) {
 		int screen_index;
 		m_Parameters->connection = xcb_connect(nullptr, &screen_index);
 
@@ -46,10 +46,10 @@ namespace HelloEngine
 			XCB_COPY_FROM_PARENT,
 			m_Parameters->handle,
 			screen->root,
-			20,
-			20,
-			500,
-			500,
+			x,
+			y,
+			w,
+			h,
 			0,
 			XCB_WINDOW_CLASS_INPUT_OUTPUT,
 			screen->root_visual,

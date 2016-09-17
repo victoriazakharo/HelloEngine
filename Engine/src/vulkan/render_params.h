@@ -1,8 +1,12 @@
 #ifdef USE_RENDER_VULKAN
+#ifndef RENDER_PARAMS_H
+#define RENDER_PARAMS_H
 #pragma once
 #include <color.h>
 #include <vector>
+#include <array> 
 #include "vulkan_functions.h"
+#include "image.h"
 #include "autodeleter.h"
 #include "window_params.h"
 
@@ -66,7 +70,19 @@ namespace HelloEngine
 
 	struct VertexData {
 		float x, y, z, w;
-		float r, g, b, a;
+		float u, v;
+	};
+
+	struct DescriptorSetParameters {
+		VkDescriptorPool                pool;
+		VkDescriptorSetLayout           layout;
+		VkDescriptorSet                 handle;
+
+		DescriptorSetParameters() :
+			pool(VK_NULL_HANDLE),
+			layout(VK_NULL_HANDLE),
+			handle(VK_NULL_HANDLE) {
+		}
 	};
 
 	struct RenderingResourcesData {
@@ -111,6 +127,10 @@ namespace HelloEngine
 		SwapChainParameters					m_SwapChain;
 		BufferParameters					m_VertexBuffer;
 		BufferParameters                    m_StagingBuffer;
+		BufferParameters                    m_UniformBuffer;
+		ImageParameters                     m_Image;
+		DescriptorSetParameters             m_DescriptorSet;
+		VkPipelineLayout                    m_PipelineLayout;
 		std::vector<RenderingResourcesData> m_RenderingResources;
 		LibraryHandle						m_VulkanLibrary;
 
@@ -131,6 +151,7 @@ namespace HelloEngine
 		bool CreateVertexBuffer(const std::vector<float>& vertex_data);
 		bool CreateFences();	
 		bool CreateStagingBuffer();
+		bool CreateDescriptorSetLayout();
 		bool CreateBuffer(VkBufferUsageFlags usage, VkMemoryPropertyFlagBits memoryProperty, BufferParameters &buffer);
 		bool PrepareFrame(VkCommandBuffer command_buffer, const ImageParameters &image_parameters, VkFramebuffer &framebuffer) const;
 		bool AllocateBufferMemory(VkBuffer buffer, VkMemoryPropertyFlagBits property, VkDeviceMemory *memory) const;
@@ -141,6 +162,19 @@ namespace HelloEngine
 		bool LoadGlobalLevelEntryPoints() const;   
 		bool LoadInstanceLevelEntryPoints() const;
 		bool LoadDeviceLevelEntryPoints() const;	
+		bool CreateTexture();
+		bool CreateDescriptorPool();
+		bool CreateImage(uint32_t width, uint32_t height, VkImage *image) const;
+		bool AllocateDescriptorSet();
+		bool AllocateImageMemory(VkMemoryPropertyFlagBits property, VkDeviceMemory *memory);
+		bool CreateUniformBuffer();
+		bool CreateImageView(ImageParameters &image_parameters);
+		bool CreateSampler(VkSampler *sampler);
+		bool CreatePipelineLayout();
+		bool CopyTextureData(const Image &image);
+		bool CopyUniformBufferData();
+		bool UpdateDescriptorSet();
+		const std::array<float, 16> GetUniformBufferData() const;
 		void DestroyBuffer(BufferParameters& buffer) const;
 
 		static bool                          CheckExtensionAvailability(const char *extension_name, const std::vector<VkExtensionProperties> &available_extensions);
@@ -155,4 +189,5 @@ namespace HelloEngine
 		AutoDeleter<VkShaderModule, PFN_vkDestroyShaderModule>		CreateShaderModule(const char* filename) const;
 	};
 }
+#endif
 #endif

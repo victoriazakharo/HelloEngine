@@ -1,3 +1,5 @@
+#ifndef WINDOW_H
+#define WINDOW_H
 #pragma once
 #include "hello_export.h"
 #include <vector>
@@ -42,3 +44,4 @@ namespace HelloEngine
 		bool							 m_ResizeRequested;
 	};
 }
+#endif

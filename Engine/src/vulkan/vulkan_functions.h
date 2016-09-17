@@ -1,4 +1,6 @@
 #ifdef USE_RENDER_VULKAN
+#ifndef VULKAN_FUNCTIONS_H
+#define VULKAN_FUNCTIONS_H
 #pragma once
 #include "vulkan.h"
 
@@ -13,5 +15,6 @@ namespace HelloEngine
 #include "vk_functions.inl"
 
 } 
+#endif
 #endif
 

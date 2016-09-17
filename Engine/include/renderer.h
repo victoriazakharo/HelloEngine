@@ -1,3 +1,5 @@
+#ifndef RENDERER_H
+#define RENDERER_H
 #pragma once
 #include "window.h"
 #include "color.h"
@@ -19,4 +21,5 @@ namespace HelloEngine
 		RenderParameters *m_Params;
 	};
 }
+#endif
 

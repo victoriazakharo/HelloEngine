@@ -14,15 +14,17 @@ bool Game::Initialize()
 		return false;
 	}	
 	static const std::vector<float> vertex_data = {
-
-		0.6f, 0.6f, 0.0f, 1.0f,
-		0.0f, 0.0f, 1.0f, 0.0f,
-
-		0.0f, -0.8f, 0.0f, 1.0f,
-		1.0f, 1.0f, 0.0f, 0.0f,
-
-		-0.6f, 0.6f, 0.0f, 1.0f,
-		1.0f, 0.6f, 0.3f, 0.0f
+		-128.0f, -128.0f, 0.0f, 1.0f,
+		-0.1f, -0.1f,
+		
+		-128.0f, 128.0f, 0.0f, 1.0f,
+		-0.1f, 1.1f,
+		
+		128.0f, -128.0f, 0.0f, 1.0f,
+		1.1f, -0.1f,
+		
+		128.0f, 128.0f, 0.0f, 1.0f,
+		1.1f, 1.1f,
 	};
 	if (!m_Renderer.Initialize(m_Window.GetParameters(), vertex_data)) {
 		return false;

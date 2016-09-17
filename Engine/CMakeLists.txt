@@ -1,5 +1,7 @@
 include_directories(src/${PLATFORM})
 include_directories(src/${RENDER_API})
+include_directories(${CMAKE_SOURCE_DIR}/Libs)
+include_directories(${CMAKE_BINARY_DIR}/Libs/libpng)
 include_directories(include)
 
 file(GLOB SOURCE_FILES src/*.cpp)
@@ -18,7 +20,7 @@ elseif(${PLATFORM} STREQUAL xcb)
         add_definitions(-DVK_USE_PLATFORM_XCB_KHR)
         add_definitions(-DVK_NO_PROTOTYPES)
     endif()
-    set(PLATFORM_LIBRARY dl xcb)  
+    set(PLATFORM_LIBRARY dl xcb)     
 endif()
 
 add_library(${ENGINE_LIB} SHARED
@@ -34,5 +36,7 @@ GENERATE_EXPORT_HEADER(${ENGINE_LIB}
              EXPORT_MACRO_NAME HELLO_ENGINE_API
              EXPORT_FILE_NAME ${PROJECT_SOURCE_DIR}/${ENGINE_LIB}/include/hello_export.h)
   
-target_link_libraries(${ENGINE_LIB} ${PLATFORM_LIBRARY})
-set_target_properties(${ENGINE_LIB} PROPERTIES LINKER_LANGUAGE CXX)
+target_link_libraries(${ENGINE_LIB} ${PLATFORM_LIBRARY} $<TARGET_FILE:png_static> $<TARGET_FILE:zlibstatic>)
+add_dependencies(${ENGINE_LIB} png_static zlibstatic)
+
+add_custom_command(TARGET ${ENGINE_LIB} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/resources $<TARGET_FILE_DIR:${ENGINE_LIB}>)

@@ -1,4 +1,6 @@
 #ifdef USE_PLATFORM_WIN32_KHR
+#ifndef WINDOW_PARAMS_H
+#define WINDOW_PARAMS_H
 #pragma once
 #include <Windows.h>
 
@@ -19,4 +21,5 @@ namespace HelloEngine
 	};
 }
 
+#endif
 #endif

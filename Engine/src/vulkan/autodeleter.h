@@ -1,6 +1,9 @@
+#ifndef AUTODELETER_H
+#define AUTODELETER_H
+#pragma once
+
 #ifdef USE_RENDER_VULKAN
 #include "vulkan_functions.h"
-#pragma once
 
 namespace HelloEngine
 {
@@ -53,4 +56,5 @@ namespace HelloEngine
 		VkDevice  device;
 	};
 }
+#endif
 #endif

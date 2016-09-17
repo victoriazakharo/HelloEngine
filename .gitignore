@@ -1,1 +1,4 @@
 Engine/include/hello_export.h
+*.db
+*.db-shm
+.vscode/.browse.VC.db-wal
